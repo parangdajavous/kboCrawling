@@ -1,15 +1,15 @@
 package com.example.crawling_sampling.kbo;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+@Slf4j
 @RequiredArgsConstructor
 @RestController
 public class KboController {
@@ -17,24 +17,34 @@ public class KboController {
 
     private final KboService kboService;
 
-    @GetMapping("/api/rank")
-    public ResponseEntity<List<KboResponseDTO.KboRankDTO>> getGameResult() {
-        List<KboResponseDTO.KboRankDTO> respDTO = kboService.getTeamRanks();
+
+    /* 단일 투수 */
+    @GetMapping("/api/pitchers/{playerId}")
+    public ResponseEntity<KboResponseDTO.PitcherStatsDTO> getPitcher(
+            @PathVariable String playerId) {
+        KboResponseDTO.PitcherStatsDTO respDTO = kboService.crawlPitcherDetail(playerId);
         return ResponseEntity.ok(respDTO);
     }
 
-    // 날짜별 gameId 목록 조회
-    @GetMapping("/api/ids/{yyyyMMdd}")
-    public ResponseEntity<List<String>> getGameIds(@PathVariable String yyyyMMdd) {
-        LocalDate date = LocalDate.parse(yyyyMMdd, DateTimeFormatter.ofPattern("yyyyMMdd"));
-        List<String> ids = kboService.getGameIds(date);
-        return ResponseEntity.ok(ids);
+    /* 전체 투수 목록 + 스탯 한번에 */
+    @GetMapping("/api/pitchers")
+    public ResponseEntity<List<KboResponseDTO.PitcherFullDTO>> getAllPitchers() {
+        List<KboResponseDTO.PitcherFullDTO> respDTO = kboService.crawlAllPitchers();
+        return ResponseEntity.ok(respDTO);
     }
 
-    // gameId 하나에 대한 상세 경기 기록 (리뷰 탭 포함)
-    @GetMapping("/api/game/{gameId}")
-    public ResponseEntity<KboResponseDTO.GameDetailDTO> getGameDetail(@PathVariable String gameId) {
-        KboResponseDTO.GameDetailDTO detail = kboService.getGameDetail(gameId);
-        return ResponseEntity.ok(detail);
+    /* (선택) playerId 목록만 보고 싶다면 */
+    @GetMapping("/api/pitchers/players")
+    public ResponseEntity<List<KboResponseDTO.PlayerInfo>> getPlayerList() {
+        List<KboResponseDTO.PlayerInfo> respDTO = kboService.crawlPitcherPlayerList();
+        return ResponseEntity.ok(respDTO);
     }
+
+
+    @GetMapping("/api/hitters")
+    public ResponseEntity<List<KboResponseDTO.HitterStatsDTO>> getAllHitters() {
+        List<KboResponseDTO.HitterStatsDTO> respDTO = kboService.crawlAllHitters();
+        return ResponseEntity.ok(respDTO);
+    }
+
 }
