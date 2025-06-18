@@ -12,10 +12,10 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Service;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,14 +49,14 @@ public class KboService {
                             Elements td = row.select("td");
                             if (td.size() < 14) continue;
 
-                            String name  = td.get(1).text();
-                            String pid   = td.get(1).selectFirst("a").attr("href")
+                            String name = td.get(1).text();
+                            String pid = td.get(1).selectFirst("a").attr("href")
                                     .replaceAll(".*playerId=", "");
-                            double era   = parseD(td.get(3).text());
-                            int    g     = parseI(td.get(4).text());
-                            int    w     = parseI(td.get(7).text());
-                            int    l     = parseI(td.get(8).text());
-                            double whip  = parseD(td.get(13).text());
+                            double era = parseD(td.get(3).text());
+                            int g = parseI(td.get(4).text());
+                            int w = parseI(td.get(7).text());
+                            int l = parseI(td.get(8).text());
+                            double whip = parseD(td.get(13).text());
 
                             map.put(name,
                                     new KboResponseDTO.PitcherFullDTO(
@@ -75,7 +75,7 @@ public class KboService {
                             if (td.size() < 13) continue;
 
                             String name = td.get(1).text();
-                            int qs      = parseI(td.get(12).text());
+                            int qs = parseI(td.get(12).text());
 
                             KboResponseDTO.PitcherFullDTO dto = map.get(name);
                             if (dto != null) {
@@ -92,7 +92,6 @@ public class KboService {
 
         return new ArrayList<>(map.values());
     }
-
 
 
     /* 타자 목록 크롤링 (선수 이름 + PlayerId / 스탯 수집) */
@@ -156,7 +155,6 @@ public class KboService {
     }
 
 
-
     public KboResponseDTO.MatchupStatsDTO crawlMatchup(String pitcherTeam, String pitcher, String hitterTeam, String hitter) {
         WebDriverManager.chromedriver().setup();
         ChromeOptions options = new ChromeOptions()
@@ -167,7 +165,8 @@ public class KboService {
             driver.get("https://www.koreabaseball.com/Record/Etc/HitVsPit.aspx");
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-            /* 1️⃣ 드롭다운 순차 선택 */
+            /* 1️⃣ 드롭다운 순차 선택
+             * Selenium으로 동적 요소 선택/조작*/
             new Select(driver.findElement(By.id(
                     "cphContents_cphContents_cphContents_ddlPitcherTeam")))
                     .selectByVisibleText(pitcherTeam);
@@ -194,20 +193,22 @@ public class KboService {
     /* 3️⃣ 결과 테이블이 완전히 로드될 때까지 대기
           ─ td 개수가 14개 이상이면 OK                                               */
             wait.until(d -> {
+                /* Selenium으로 전체 HTML 가져오기 */
                 Document tmp = Jsoup.parse(d.getPageSource());
                 Element r = tmp.selectFirst("table.tData.tt tbody tr");
                 return r != null && r.select("td").size() >= 14;
             });
 
-            /* 4️⃣ HTML 파싱 */
+            /* 4️⃣ HTML 파싱
+             * Jsoup으로 HTML 파싱*/
             Document doc = Jsoup.parse(driver.getPageSource());
             Element row = doc.selectFirst("table.tData.tt tbody tr");
             Elements td = row.select("td");        // 여기서 td.size() == 14 보장
 
-            int ab   = parseI(td.get(2).text());
-            int h    = parseI(td.get(3).text());
-            int hr   = parseI(td.get(6).text());
-            int bb   = parseI(td.get(8).text());
+            int ab = parseI(td.get(2).text());
+            int h = parseI(td.get(3).text());
+            int hr = parseI(td.get(6).text());
+            int bb = parseI(td.get(8).text());
             double avg = parseD(td.get(0).text());
             double ops = parseD(td.get(13).text());
 
@@ -220,8 +221,6 @@ public class KboService {
             driver.quit();
         }
     }
-
-
 
 
 }
