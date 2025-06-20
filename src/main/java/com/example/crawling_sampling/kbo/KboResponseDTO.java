@@ -77,5 +77,34 @@ public class KboResponseDTO {
     }
 
 
+    /* 오늘 경기의 선발투수 정보 */
+    @Data
+    public static class StartingPitcherFullDTO {
+        private String name;
+        private String profil_img;
+        private double era;
+        private Integer gameCount;
+        private String gameResult;
+        private Integer qs;
+        private double whip;
+        private String teamType;
+        private String gameId;
+
+        public StartingPitcherFullDTO(String name, String profil_img,
+                                      double era, Integer gameCount, String gameResult,
+                                      Integer qs, double whip, String teamType, String gameId) {
+            this.name = name;
+            this.profil_img = profil_img;
+            this.era = era;
+            this.gameCount = gameCount;
+            this.gameResult = gameResult;
+            this.qs = qs;
+            this.whip = whip;
+            this.teamType = teamType;
+            this.gameId = gameId;
+        }
+    }
+
+
 }
 

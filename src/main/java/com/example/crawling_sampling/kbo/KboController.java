@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -46,6 +45,7 @@ public class KboController {
             @RequestParam String hitter) {
 
         KboResponseDTO.MatchupStatsDTO respDTO = kboService.crawlMatchup(pitcherTeam, pitcher, hitterTeam, hitter);
+
         if (respDTO == null) {
             Map<String, String> error = new HashMap<>();
             error.put("message", "맞대결 기록이 없습니다");
@@ -54,6 +54,26 @@ public class KboController {
         return ResponseEntity.ok(respDTO);
     }
 
+
+    // 상대 선발투수 정보만 반환
+    @GetMapping("/api/starting-pitcher")
+    public ResponseEntity<?> getOpponentPitcher(
+            @RequestParam("gameId") String gameId,
+            @RequestParam("teamType") String teamType
+    ) {
+        String opponentType = teamType.equalsIgnoreCase("home") ? "away" : "home";
+
+        KboResponseDTO.StartingPitcherFullDTO opponent =
+                kboService.crawlStartingPitcher(gameId, opponentType);
+
+        if (opponent == null) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "해당 경기에서 상대 선발투수를 찾을 수 없습니다.");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        }
+
+        return ResponseEntity.ok(opponent);
+    }
 
 
 }

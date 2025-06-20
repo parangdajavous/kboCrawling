@@ -1,8 +1,11 @@
 package com.example.crawling_sampling.kbo;
 
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -220,6 +223,138 @@ public class KboService {
         } finally {
             driver.quit();
         }
+    }
+
+    public KboResponseDTO.StartingPitcherFullDTO crawlStartingPitcher(String gameId, String teamType) {
+        try {
+            // 1. 날짜별 GameCenter 페이지에서 선수 ID 추출
+            String targetDate = gameId.substring(0, 8);  // gameId = "20250621OBLG0" → "20250621"
+
+            Document mainPage = Jsoup.connect("https://www.koreabaseball.com/Schedule/GameCenter/Main.aspx?gameDate=" + targetDate)
+                    .userAgent("Mozilla")
+                    .get();
+
+            Element gameEl = mainPage.selectFirst("li.game-cont[g_id=\"" + gameId + "\"]");
+            if (gameEl == null) {
+                log.warn("[WARN] gameId={} 해당 경기 요소를 찾을 수 없습니다", gameId);
+                log.warn("[DEBUG] mainPage HTML = {}", mainPage.outerHtml());
+                return null;
+            }
+
+            String awayTeamId = gameEl.attr("away_id");
+            String homeTeamId = gameEl.attr("home_id");
+            String awayPitId = gameEl.attr("away_p_id");
+            String homePitId = gameEl.attr("home_p_id");
+            log.warn("awayTeamId={}, homeTeamId={}, awayPitId={}, homePitId={}", awayTeamId, homeTeamId, awayPitId, homePitId);
+            if (awayPitId.isEmpty() || homePitId.isEmpty()) {
+                log.warn("선발투수 ID 누락: away={}, home={}", awayPitId, homePitId);
+                return null;
+            }
+
+            // 2. API 요청
+            String url = "https://www.koreabaseball.com/ws/Schedule.asmx/GetPitcherRecordAnalysis";
+
+            Connection.Response response = Jsoup.connect(url)
+                    .method(Connection.Method.POST)
+                    .header("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+                    .ignoreContentType(true)
+                    .data("leId", "1")
+                    .data("srId", "0")
+                    .data("seasonId", "2025")
+                    .data("awayTeamId", awayTeamId)
+                    .data("awayPitId", awayPitId)
+                    .data("homeTeamId", homeTeamId)
+                    .data("homePitId", homePitId)
+                    .data("groupSc", "SEASON")
+                    .execute();
+
+            String json = response.body();
+            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
+
+            JsonObject first = obj.getAsJsonArray("rows").get(teamType.equals("away") ? 0 : 1).getAsJsonObject();
+
+            String name = first.get("P_NM").getAsString();
+            String img = "https://www.koreabaseball.com" + first.get("P_PIC").getAsString();
+            double era = Double.parseDouble(first.get("ERA_RT").getAsString());
+            int gameCnt = Integer.parseInt(first.get("GAME_CN").getAsString());
+            int qs = Integer.parseInt(first.get("QS_CN").getAsString());
+            double whip = Double.parseDouble(first.get("WHIP_RT").getAsString());
+
+            return new KboResponseDTO.StartingPitcherFullDTO(
+                    name, img, era, gameCnt, "-", qs, whip,
+                    teamType, gameId
+            );
+
+        } catch (Exception e) {
+            log.error("[ERROR] API 기반 선발투수 크롤링 실패: gameId={}, teamType={}", gameId, teamType, e);
+            return null;
+        }
+    }
+
+    public List<KboResponseDTO.StartingPitcherFullDTO> fetchAllTodayStartingPitchers() {
+        List<KboResponseDTO.StartingPitcherFullDTO> allPitchers = new ArrayList<>();
+
+        try {
+            Document doc = Jsoup.connect("https://www.koreabaseball.com/Schedule/GameCenter/Main.aspx")
+                    .userAgent("Mozilla")
+                    .get();
+
+            Elements gameElements = doc.select("li.game-cont");
+            for (Element gameElement : gameElements) {
+                String gameId = gameElement.attr("g_id");
+
+                // 각 경기 페이지로 이동해서 상세 정보 가져오기
+                String detailUrl = "https://www.koreabaseball.com/Schedule/GameCenter/Preview.aspx?gid=" + gameId;
+                Document detailDoc = Jsoup.connect(detailUrl)
+                        .userAgent("Mozilla")
+                        .get();
+
+                // 홈팀 정보
+                String homeName = detailDoc.select("#home_p_info span.name").text();
+                String homeImg = detailDoc.select("#home_p_img img").last().attr("abs:src");
+                String homeEra = detailDoc.select("#home_era").text();
+                String homeGame = detailDoc.select("#home_game").text();
+                String homeQs = detailDoc.select("#home_qs").text();
+                String homeWhip = detailDoc.select("#home_whip").text();
+                String homeResult = detailDoc.select("#home_season").text();
+
+                // 원정팀 정보
+                String awayName = detailDoc.select("#away_p_info span.name").text();
+                String awayImg = detailDoc.select("#away_p_img img").last().attr("abs:src");
+                String awayEra = detailDoc.select("#away_era").text();
+                String awayGame = detailDoc.select("#away_game").text();
+                String awayQs = detailDoc.select("#away_qs").text();
+                String awayWhip = detailDoc.select("#away_whip").text();
+                String awayResult = detailDoc.select("#away_season").text();
+
+                allPitchers.add(new KboResponseDTO.StartingPitcherFullDTO(
+                        homeName, homeImg,
+                        Double.parseDouble(homeEra),
+                        Integer.parseInt(homeGame),
+                        homeResult,
+                        Integer.parseInt(homeQs),
+                        Double.parseDouble(homeWhip),
+                        "home",
+                        gameId
+                ));
+
+                allPitchers.add(new KboResponseDTO.StartingPitcherFullDTO(
+                        awayName, awayImg,
+                        Double.parseDouble(awayEra),
+                        Integer.parseInt(awayGame),
+                        awayResult,
+                        Integer.parseInt(awayQs),
+                        Double.parseDouble(awayWhip),
+                        "away",
+                        gameId
+                ));
+            }
+
+        } catch (Exception e) {
+            log.error("[ERROR] 오늘의 선발투수 데이터 파싱 실패", e);
+        }
+
+        return allPitchers;
     }
 
 
