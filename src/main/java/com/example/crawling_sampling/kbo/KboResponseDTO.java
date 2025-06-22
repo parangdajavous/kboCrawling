@@ -2,6 +2,8 @@ package com.example.crawling_sampling.kbo;
 
 import lombok.Data;
 
+import java.util.List;
+
 public class KboResponseDTO {
 
     /* 투수 - 선수이름 + playerId + 스탯 */
@@ -111,6 +113,35 @@ public class KboResponseDTO {
             this.whip = whip;
             this.teamType = teamType;
             this.gameId = gameId;
+            this.message = message;
+        }
+    }
+
+    @Data
+    public static class HitterLineupDTO {
+        private String teamType;     // "away" or "home"
+        private String teamName;
+        private List<HitterInfo> hitters;
+        private String message;
+
+        public static class HitterInfo {
+            private int order;
+            private String position;
+            private String playerName;
+
+
+            public HitterInfo(int order, String position, String playerName) {
+                this.order = order;
+                this.position = position;
+                this.playerName = playerName;
+            }
+        }
+
+
+        public HitterLineupDTO(String teamType, String teamName, List<HitterInfo> hitters, String message) {
+            this.teamType = teamType;
+            this.teamName = teamName;
+            this.hitters = hitters;
             this.message = message;
         }
     }
