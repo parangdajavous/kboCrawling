@@ -147,5 +147,19 @@ public class KboResponseDTO {
     }
 
 
+    @Data
+    public static class PlayerSimpleDTO {
+        private String teamCode;    // 팀코드: OB, LG, KT 등
+        private String name;        // 선수이름
+        private String playerId;    // KBO playerId (null일 수도 있음)
+
+        public PlayerSimpleDTO(String teamCode, String name, String playerId) {
+            this.teamCode = teamCode;
+            this.name = name;
+            this.playerId = playerId;
+        }
+    }
+
+
 }
 

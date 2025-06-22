@@ -12,6 +12,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.openqa.selenium.By;
+import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -24,10 +25,9 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.example.crawling_sampling.utils.util.*;
 import static java.lang.Double.parseDouble;
@@ -477,70 +477,148 @@ public class KboService {
         }
     }
 
-    public List<KboResponseDTO.StartingPitcherFullDTO> fetchAllTodayStartingPitchers() {
-        List<KboResponseDTO.StartingPitcherFullDTO> allPitchers = new ArrayList<>();
+
+    // 타자 라인업
+    public List<KboResponseDTO.HitterLineupDTO> crawlTodayHitterLineups() {
+        List<KboResponseDTO.HitterLineupDTO> result = new ArrayList<>();
+        WebDriver driver = null;
 
         try {
-            Document doc = Jsoup.connect("https://www.koreabaseball.com/Schedule/GameCenter/Main.aspx")
-                    .userAgent("Mozilla")
-                    .get();
+            String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            String url = "https://www.koreabaseball.com/Schedule/GameCenter/Main.aspx?gameDate=" + today;
 
-            Elements gameElements = doc.select("li.game-cont");
-            for (Element gameElement : gameElements) {
-                String gameId = gameElement.attr("g_id");
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments("--headless=new", "--no-sandbox", "--disable-dev-shm-usage");
+            driver = new ChromeDriver(options);
+            driver.get(url);
 
-                // 각 경기 페이지로 이동해서 상세 정보 가져오기
-                String detailUrl = "https://www.koreabaseball.com/Schedule/GameCenter/Preview.aspx?gid=" + gameId;
-                Document detailDoc = Jsoup.connect(detailUrl)
-                        .userAgent("Mozilla")
-                        .get();
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("li.game-cont")));
 
-                // 홈팀 정보
-                String homeName = detailDoc.select("#home_p_info span.name").text();
-                String homeImg = detailDoc.select("#home_p_img img").last().attr("abs:src");
-                String homeEra = detailDoc.select("#home_era").text();
-                String homeGame = detailDoc.select("#home_game").text();
-                String homeQs = detailDoc.select("#home_qs").text();
-                String homeWhip = detailDoc.select("#home_whip").text();
-                String homeResult = detailDoc.select("#home_season").text();
+            List<WebElement> gameElements = driver.findElements(By.cssSelector("li.game-cont"));
+            for (int i = 0; i < gameElements.size(); i++) {
+                try {
+                    WebElement game = driver.findElements(By.cssSelector("li.game-cont")).get(i);
+                    String gameId = game.getAttribute("g_id");
+                    String homeTeam = game.getAttribute("home_nm");
+                    String awayTeam = game.getAttribute("away_nm");
+                    String lineupCk = game.getAttribute("lineup_ck");
 
-                // 원정팀 정보
-                String awayName = detailDoc.select("#away_p_info span.name").text();
-                String awayImg = detailDoc.select("#away_p_img img").last().attr("abs:src");
-                String awayEra = detailDoc.select("#away_era").text();
-                String awayGame = detailDoc.select("#away_game").text();
-                String awayQs = detailDoc.select("#away_qs").text();
-                String awayWhip = detailDoc.select("#away_whip").text();
-                String awayResult = detailDoc.select("#away_season").text();
+                    driver.get("https://www.koreabaseball.com/Schedule/GameCenter/Main.aspx?gameDate=" + today);
 
-                allPitchers.add(new KboResponseDTO.StartingPitcherFullDTO(
-                        homeName, homeImg,
-                        Double.parseDouble(homeEra),
-                        Integer.parseInt(homeGame),
-                        homeResult,
-                        Integer.parseInt(homeQs),
-                        Double.parseDouble(homeWhip),
-                        "home",
-                        gameId
-                ));
+                    Thread.sleep(1000); // JS로 테이블 로딩되는 시간 약간 필요
 
-                allPitchers.add(new KboResponseDTO.StartingPitcherFullDTO(
-                        awayName, awayImg,
-                        Double.parseDouble(awayEra),
-                        Integer.parseInt(awayGame),
-                        awayResult,
-                        Integer.parseInt(awayQs),
-                        Double.parseDouble(awayWhip),
-                        "away",
-                        gameId
-                ));
+                    if (!"1".equals(lineupCk)) {
+                        // 라인업 발표 전
+                        result.add(new KboResponseDTO.HitterLineupDTO(
+                                "away", awayTeam,
+                                Collections.emptyList(),
+                                "라인업 발표 전입니다"
+                        ));
+                        result.add(new KboResponseDTO.HitterLineupDTO(
+                                "home", homeTeam,
+                                Collections.emptyList(),
+                                "라인업 발표 전입니다"
+                        ));
+                        continue;
+                    }
+
+                    // 라인업 발표된 경우
+                    result.add(parseLineup(driver, "#tblAwayLineUp", "away", awayTeam));
+                    result.add(parseLineup(driver, "#tblHomeLineUp", "home", homeTeam));
+                } catch (StaleElementReferenceException e) {
+                    log.warn("[WARN] Stale element encountered, skipping game index={}", i);
+                    continue;
+                }
+            }
+
+            return result;
+
+        } catch (Exception e) {
+            log.error("[ERROR] 타자 라인업 수집 중 오류 발생", e);
+            return result;
+        } finally {
+            if (driver != null) driver.quit();
+        }
+    }
+
+    private KboResponseDTO.HitterLineupDTO parseLineup(WebDriver driver, String tableSelector, String teamType, String teamName) {
+        List<KboResponseDTO.HitterLineupDTO.HitterInfo> hitters = new ArrayList<>();
+        try {
+            WebElement table = driver.findElement(By.cssSelector(tableSelector));
+            List<WebElement> rows = table.findElements(By.cssSelector("tbody tr"));
+
+            for (WebElement row : rows) {
+                List<WebElement> cols = row.findElements(By.tagName("td"));
+                if (cols.size() < 3) continue;
+                int order = Integer.parseInt(cols.get(0).getText().trim());
+                String position = cols.get(1).getText().trim();
+                String playerName = cols.get(2).getText().trim();
+
+                hitters.add(new KboResponseDTO.HitterLineupDTO.HitterInfo(order, position, playerName));
             }
 
         } catch (Exception e) {
-            log.error("[ERROR] 오늘의 선발투수 데이터 파싱 실패", e);
+            log.warn("[WARN] 라인업 파싱 실패: teamType={}, teamName={}", teamType, teamName);
         }
 
-        return allPitchers;
+        return new KboResponseDTO.HitterLineupDTO(teamType, teamName, hitters, null);
+    }
+
+
+    public List<KboResponseDTO.PlayerSimpleDTO> crawlTeamPlayersWithId(String teamCode) {
+        List<KboResponseDTO.PlayerSimpleDTO> result = new ArrayList<>();
+        try {
+            String url = "https://www.koreabaseball.com/Team/Roster.aspx?code=" + teamCode;
+            Document doc = Jsoup.connect(url).get();
+
+            Elements rows = doc.select("table.tData tbody tr");
+
+            for (Element row : rows) {
+                Elements cols = row.select("td");
+                if (cols.size() < 3) continue;
+
+                // 포지션 필터링
+                String position = cols.get(2).text();
+                if (!position.contains("투수") &&
+                        !position.contains("포수") &&
+                        !position.contains("내야수") &&
+                        !position.contains("외야수")) {
+                    continue;
+                }
+
+                String name = cols.get(1).text();
+                String playerId = null;
+
+                // a 태그의 href에서 playerId 추출
+                Element linkEl = cols.get(1).selectFirst("a[href*=playerId]");
+                if (linkEl != null) {
+                    String href = linkEl.attr("href");
+                    Matcher matcher = Pattern.compile("playerId=(\\d+)").matcher(href);
+                    if (matcher.find()) {
+                        playerId = matcher.group(1);
+                    }
+                }
+
+                result.add(new KboResponseDTO.PlayerSimpleDTO(teamCode, name, playerId));
+            }
+
+        } catch (Exception e) {
+            log.error("[ERROR] 팀 선수 정보 크롤링 실패: teamCode={}", teamCode, e);
+        }
+
+        return result;
+    }
+
+    public List<KboResponseDTO.PlayerSimpleDTO> crawlAllTeamsPlayers() {
+        List<String> teamCodes = List.of("OB", "LT", "HH", "SS", "HT", "SK", "LG", "KT", "WO", "NC");
+        List<KboResponseDTO.PlayerSimpleDTO> allPlayers = new ArrayList<>();
+
+        for (String code : teamCodes) {
+            allPlayers.addAll(crawlTeamPlayersWithId(code));
+        }
+
+        return allPlayers;
     }
 
 

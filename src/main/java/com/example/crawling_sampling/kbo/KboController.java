@@ -91,5 +91,18 @@ public class KboController {
         return ResponseEntity.ok(respDTO);
     }
 
+    @GetMapping("/api/today-hitter-lineups")
+    public ResponseEntity<?> getTodayHitterLineups() {
+        List<KboResponseDTO.HitterLineupDTO> respDTO = kboService.crawlTodayHitterLineups();
+        return ResponseEntity.ok(respDTO);
+    }
+
+
+    @GetMapping("/api/all-team-players")
+    public ResponseEntity<?> getAllTeamPlayers() {
+        List<KboResponseDTO.PlayerSimpleDTO> players = kboService.crawlAllTeamsPlayers();
+        return ResponseEntity.ok(players);
+    }
+
 
 }
