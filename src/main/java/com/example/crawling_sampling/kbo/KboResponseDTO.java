@@ -89,10 +89,19 @@ public class KboResponseDTO {
         private double whip;
         private String teamType;
         private String gameId;
+        private String message; // 기본값은 null
 
+        // 일반 생성자 (message null 기본값)
         public StartingPitcherFullDTO(String name, String profil_img,
                                       double era, Integer gameCount, String gameResult,
                                       Integer qs, double whip, String teamType, String gameId) {
+            this(name, profil_img, era, gameCount, gameResult, qs, whip, teamType, gameId, null);
+        }
+
+        // message 포함 생성자
+        public StartingPitcherFullDTO(String name, String profil_img,
+                                      double era, Integer gameCount, String gameResult,
+                                      Integer qs, double whip, String teamType, String gameId, String message) {
             this.name = name;
             this.profil_img = profil_img;
             this.era = era;
@@ -102,6 +111,7 @@ public class KboResponseDTO {
             this.whip = whip;
             this.teamType = teamType;
             this.gameId = gameId;
+            this.message = message;
         }
     }
 

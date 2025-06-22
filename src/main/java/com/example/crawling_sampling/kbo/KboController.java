@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +75,20 @@ public class KboController {
         }
 
         return ResponseEntity.ok(opponent);
+    }
+
+    // 오늘 경기 전체 선발투수 정보
+    @GetMapping("/api/today-starting-pitchers")
+    public ResponseEntity<?> getTodayStartingPitchers() {
+        List<KboResponseDTO.StartingPitcherFullDTO> respDTO = kboService.crawlTodayStartingPitchers();
+        return ResponseEntity.ok(respDTO);
+    }
+
+    // 내일 경기 전체 선발투수 정보
+    @GetMapping("/api/tomorrow-starting-pitchers")
+    public ResponseEntity<?> getTomorrowStartingPitchers() {
+        List<KboResponseDTO.StartingPitcherFullDTO> respDTO = kboService.crawlTomorrowStartingPitchers();
+        return ResponseEntity.ok(respDTO);
     }
 
 
