@@ -4,7 +4,6 @@ package com.example.crawling_sampling.kbo;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import io.github.bonigarcia.wdm.WebDriverManager;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
@@ -12,7 +11,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.openqa.selenium.By;
-import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -30,81 +28,78 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static com.example.crawling_sampling.utils.util.parseD;
-import static com.example.crawling_sampling.utils.util.parseI;
-
 @Slf4j
 @Service
 public class KboService {
 
 
     // 맞대결 전적
-    public KboResponseDTO.MatchupStatsDTO crawlMatchup(String pitcherTeam, String pitcher, String hitterTeam, String hitter) {
-        WebDriverManager.chromedriver().setup();
-        ChromeOptions options = new ChromeOptions()
-                .addArguments("--headless=new", "--no-sandbox", "--disable-dev-shm-usage");
-        WebDriver driver = new ChromeDriver(options);
-
-        try {
-            driver.get("https://www.koreabaseball.com/Record/Etc/HitVsPit.aspx");
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-
-            /* 1️⃣ 드롭다운 순차 선택
-             * Selenium으로 동적 요소 선택/조작*/
-            new Select(driver.findElement(By.id(
-                    "cphContents_cphContents_cphContents_ddlPitcherTeam")))
-                    .selectByVisibleText(pitcherTeam);
-            Thread.sleep(700);
-
-            new Select(driver.findElement(By.id(
-                    "cphContents_cphContents_cphContents_ddlPitcherPlayer")))
-                    .selectByVisibleText(pitcher);
-            Thread.sleep(700);
-
-            new Select(driver.findElement(By.id(
-                    "cphContents_cphContents_cphContents_ddlHitterTeam")))
-                    .selectByVisibleText(hitterTeam);
-            Thread.sleep(700);
-
-            new Select(driver.findElement(By.id(
-                    "cphContents_cphContents_cphContents_ddlHitterPlayer")))
-                    .selectByVisibleText(hitter);
-            Thread.sleep(700);
-
-            /* 2️⃣ 조회 버튼 클릭 */
-            driver.findElement(By.id("cphContents_cphContents_cphContents_btnSearch")).click();
-
-    /* 3️⃣ 결과 테이블이 완전히 로드될 때까지 대기
-          ─ td 개수가 14개 이상이면 OK                                               */
-            wait.until(d -> {
-                /* Selenium으로 전체 HTML 가져오기 */
-                Document tmp = Jsoup.parse(d.getPageSource());
-                Element r = tmp.selectFirst("table.tData.tt tbody tr");
-                return r != null && r.select("td").size() >= 14;
-            });
-
-            /* 4️⃣ HTML 파싱
-             * Jsoup으로 HTML 파싱*/
-            Document doc = Jsoup.parse(driver.getPageSource());
-            Element row = doc.selectFirst("table.tData.tt tbody tr");
-            Elements td = row.select("td");        // 여기서 td.size() == 14 보장
-
-            int ab = parseI(td.get(2).text());
-            int h = parseI(td.get(3).text());
-            int hr = parseI(td.get(6).text());
-            int bb = parseI(td.get(8).text());
-            double avg = parseD(td.get(0).text());
-            double ops = parseD(td.get(13).text());
-
-            return new KboResponseDTO.MatchupStatsDTO(
-                    pitcher, hitter, ab, h, hr, bb, avg, ops);
-
-        } catch (Exception e) {
-            throw new RuntimeException("맞대결 크롤링 실패", e);
-        } finally {
-            driver.quit();
-        }
-    }
+//    public KboResponseDTO.MatchupStatsDTO crawlMatchup(String pitcherTeam, String pitcher, String hitterTeam, String hitter) {
+//        WebDriverManager.chromedriver().setup();
+//        ChromeOptions options = new ChromeOptions()
+//                .addArguments("--headless=new", "--no-sandbox", "--disable-dev-shm-usage");
+//        WebDriver driver = new ChromeDriver(options);
+//
+//        try {
+//            driver.get("https://www.koreabaseball.com/Record/Etc/HitVsPit.aspx");
+//            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+//
+//            /* 1️⃣ 드롭다운 순차 선택
+//             * Selenium으로 동적 요소 선택/조작*/
+//            new Select(driver.findElement(By.id(
+//                    "cphContents_cphContents_cphContents_ddlPitcherTeam")))
+//                    .selectByVisibleText(pitcherTeam);
+//            Thread.sleep(700);
+//
+//            new Select(driver.findElement(By.id(
+//                    "cphContents_cphContents_cphContents_ddlPitcherPlayer")))
+//                    .selectByVisibleText(pitcher);
+//            Thread.sleep(700);
+//
+//            new Select(driver.findElement(By.id(
+//                    "cphContents_cphContents_cphContents_ddlHitterTeam")))
+//                    .selectByVisibleText(hitterTeam);
+//            Thread.sleep(700);
+//
+//            new Select(driver.findElement(By.id(
+//                    "cphContents_cphContents_cphContents_ddlHitterPlayer")))
+//                    .selectByVisibleText(hitter);
+//            Thread.sleep(700);
+//
+//            /* 2️⃣ 조회 버튼 클릭 */
+//            driver.findElement(By.id("cphContents_cphContents_cphContents_btnSearch")).click();
+//
+//    /* 3️⃣ 결과 테이블이 완전히 로드될 때까지 대기
+//          ─ td 개수가 14개 이상이면 OK                                               */
+//            wait.until(d -> {
+//                /* Selenium으로 전체 HTML 가져오기 */
+//                Document tmp = Jsoup.parse(d.getPageSource());
+//                Element r = tmp.selectFirst("table.tData.tt tbody tr");
+//                return r != null && r.select("td").size() >= 14;
+//            });
+//
+//            /* 4️⃣ HTML 파싱
+//             * Jsoup으로 HTML 파싱*/
+//            Document doc = Jsoup.parse(driver.getPageSource());
+//            Element row = doc.selectFirst("table.tData.tt tbody tr");
+//            Elements td = row.select("td");        // 여기서 td.size() == 14 보장
+//
+//            int ab = parseI(td.get(2).text());
+//            int h = parseI(td.get(3).text());
+//            int hr = parseI(td.get(6).text());
+//            int bb = parseI(td.get(8).text());
+//            double avg = parseD(td.get(0).text());
+//            double ops = parseD(td.get(13).text());
+//
+//            return new KboResponseDTO.MatchupStatsDTO(
+//                    pitcher, hitter, ab, h, hr, bb, avg, ops);
+//
+//        } catch (Exception e) {
+//            throw new RuntimeException("맞대결 크롤링 실패", e);
+//        } finally {
+//            driver.quit();
+//        }
+//    }
 
     // 상대 선발투수 라인업
     // 선택한 팀이 홈팀일 경우 원정팀 선발투수를 보여주고, 선택한 팀이 원정팀일 경우 홈팀의 선발투수를 보여준다
@@ -355,95 +350,6 @@ public class KboService {
 //    }
 
 
-    // 타자 라인업
-    public List<KboResponseDTO.HitterLineupDTO> crawlTodayHitterLineups() {
-        List<KboResponseDTO.HitterLineupDTO> result = new ArrayList<>();
-        WebDriver driver = null;
-
-        try {
-            /* ───────────────────── 1. 오늘 날짜 기반 URL 구성 ───────────────────── */
-            String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-            String url = "https://www.koreabaseball.com/Schedule/GameCenter/Main.aspx?gameDate=" + today;
-
-            /* ───────────────────── 2. Selenium WebDriver 초기화 ───────────────────── */
-            ChromeOptions options = new ChromeOptions();
-            options.addArguments("--headless=new", "--no-sandbox", "--disable-dev-shm-usage");
-            driver = new ChromeDriver(options);
-            driver.get(url);
-
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("li.game-cont")));
-
-            List<WebElement> gameElements = driver.findElements(By.cssSelector("li.game-cont"));
-            for (int i = 0; i < gameElements.size(); i++) {
-                try {
-                    WebElement game = driver.findElements(By.cssSelector("li.game-cont")).get(i);
-                    String gameId = game.getAttribute("g_id");
-                    String homeTeam = game.getAttribute("home_nm");
-                    String awayTeam = game.getAttribute("away_nm");
-                    String lineupCk = game.getAttribute("lineup_ck");
-
-                    driver.get("https://www.koreabaseball.com/Schedule/GameCenter/Main.aspx?gameDate=" + today);
-
-                    Thread.sleep(1000); // JS로 테이블 로딩되는 시간 약간 필요
-
-                    if (!"1".equals(lineupCk)) {
-                        // 라인업 발표 전
-                        result.add(new KboResponseDTO.HitterLineupDTO(
-                                "away", awayTeam,
-                                Collections.emptyList(),
-                                "라인업 발표 전입니다"
-                        ));
-                        result.add(new KboResponseDTO.HitterLineupDTO(
-                                "home", homeTeam,
-                                Collections.emptyList(),
-                                "라인업 발표 전입니다"
-                        ));
-                        continue;
-                    }
-
-                    // 라인업 발표된 경우
-                    result.add(parseLineup(driver, "#tblAwayLineUp", "away", awayTeam));
-                    result.add(parseLineup(driver, "#tblHomeLineUp", "home", homeTeam));
-                } catch (StaleElementReferenceException e) {
-                    log.warn("[WARN] Stale element encountered, skipping game index={}", i);
-                    continue;
-                }
-            }
-
-            return result;
-
-        } catch (Exception e) {
-            log.error("[ERROR] 타자 라인업 수집 중 오류 발생", e);
-            return result;
-        } finally {
-            if (driver != null) driver.quit();
-        }
-    }
-
-    private KboResponseDTO.HitterLineupDTO parseLineup(WebDriver driver, String tableSelector, String teamType, String teamName) {
-        List<KboResponseDTO.HitterLineupDTO.HitterInfo> hitters = new ArrayList<>();
-        try {
-            WebElement table = driver.findElement(By.cssSelector(tableSelector));
-            List<WebElement> rows = table.findElements(By.cssSelector("tbody tr"));
-
-            for (WebElement row : rows) {
-                List<WebElement> cols = row.findElements(By.tagName("td"));
-                if (cols.size() < 3) continue;
-                int order = Integer.parseInt(cols.get(0).getText().trim());
-                String position = cols.get(1).getText().trim();
-                String playerName = cols.get(2).getText().trim();
-
-                hitters.add(new KboResponseDTO.HitterLineupDTO.HitterInfo(order, position, playerName));
-            }
-
-        } catch (Exception e) {
-            log.warn("[WARN] 라인업 파싱 실패: teamType={}, teamName={}", teamType, teamName);
-        }
-
-        return new KboResponseDTO.HitterLineupDTO(teamType, teamName, hitters, null);
-    }
-
     // 경기 전체 선발투수 리스트
     public List<KboResponseDTO.StartingPitcherFullDTO> crawlStartingPitchers() {
         List<KboResponseDTO.StartingPitcherFullDTO> result = new ArrayList<>();
@@ -554,5 +460,170 @@ public class KboService {
         }
         return "";
     }
+
+
+    public void crawlHitterLineupWithMatchup() {
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--headless=new", "--no-sandbox", "--disable-dev-shm-usage");
+        WebDriver driver = new ChromeDriver(options);
+
+        List<KboResponseDTO.HitterLineupDTO> result = new ArrayList<>();
+
+        try {
+            // ① 오늘 날짜로 URL 생성
+            String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            String url = "https://www.koreabaseball.com/Schedule/GameCenter/Main.aspx?gameDate=" + today;
+            driver.get(url);
+
+            // ② 경기 정보 로딩 대기
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("li.game-cont")));
+
+            // ③ 각 경기별 라인업 + 선발투수 정보 파싱
+            List<WebElement> games = driver.findElements(By.cssSelector("li.game-cont"));
+            for (WebElement game : games) {
+                String homeTeam = game.getAttribute("home_nm");
+                String awayTeam = game.getAttribute("away_nm");
+                String homePitcher = game.getAttribute("home_p_nm");
+                String awayPitcher = game.getAttribute("away_p_nm");
+                String lineupCk = game.getAttribute("lineup_ck");
+
+                driver.get(url); // 페이지 리로딩
+                Thread.sleep(1000);
+
+                if (!"1".equals(lineupCk)) {
+                    result.add(new KboResponseDTO.HitterLineupDTO("away", awayTeam, Collections.emptyList(), "라인업 발표 전입니다"));
+                    result.add(new KboResponseDTO.HitterLineupDTO("home", homeTeam, Collections.emptyList(), "라인업 발표 전입니다"));
+                    continue;
+                }
+
+                // away 타자 vs home 선발투수
+                result.add(parseLineupWithMatchup(driver, "#tblAwayLineUp", "away", awayTeam, homeTeam, homePitcher));
+                // home 타자 vs away 선발투수
+                result.add(parseLineupWithMatchup(driver, "#tblHomeLineUp", "home", homeTeam, awayTeam, awayPitcher));
+            }
+
+            // ④ 저장
+            //lineupRepo.saveAll(result);
+            log.info("타자 라인업 저장 완료: {}건", result.size());
+
+        } catch (Exception e) {
+            log.error("[ERROR] 타자 라인업 크롤링 실패", e);
+        } finally {
+            driver.quit();
+        }
+    }
+
+    /**
+     * 라인업 테이블 파싱 + 선발투수와의 맞대결 전적 크롤링
+     */
+    private KboResponseDTO.HitterLineupDTO parseLineupWithMatchup(
+            WebDriver driver,
+            String tableSelector,
+            String teamType,
+            String teamName,
+            String opponentTeam,
+            String opponentPitcher
+    ) {
+        List<KboResponseDTO.HitterLineupDTO.HitterInfo> hitters = new ArrayList<>();
+
+        try {
+            WebElement table = driver.findElement(By.cssSelector(tableSelector));
+            List<WebElement> rows = table.findElements(By.cssSelector("tbody tr"));
+
+            for (WebElement row : rows) {
+                List<WebElement> cols = row.findElements(By.tagName("td"));
+                if (cols.size() < 3) continue;
+
+                int order = Integer.parseInt(cols.get(0).getText().trim());
+                String position = cols.get(1).getText().trim();
+                String playerName = cols.get(2).getText().trim();
+
+                List<KboResponseDTO.HitterLineupDTO.HitterInfo.MatchUpDTO> matchUps = new ArrayList<>();
+
+                // 맞대결 크롤링 수행
+                if (opponentPitcher != null && !"없음".equals(opponentPitcher)) {
+                    try {
+                        KboResponseDTO.MatchupStatsDTO stats = crawlMatchup(driver, opponentTeam, opponentPitcher, teamName, playerName);
+                        if (stats != null) {
+                            matchUps.add(new KboResponseDTO.HitterLineupDTO.HitterInfo.MatchUpDTO(
+                                    stats.getAb(), stats.getH(), stats.getHr(), stats.getBb(), stats.getAvg(), stats.getOps()
+                            ));
+                        }
+                    } catch (Exception e) {
+                        log.warn("[WARN] 맞대결 조회 실패: {} vs {}", opponentPitcher, playerName);
+                    }
+                }
+
+                hitters.add(new KboResponseDTO.HitterLineupDTO.HitterInfo(order, position, playerName, matchUps));
+            }
+
+        } catch (Exception e) {
+            log.warn("[WARN] 라인업 파싱 실패: teamType={}, teamName={}", teamType, teamName);
+        }
+
+        return new KboResponseDTO.HitterLineupDTO(teamType, teamName, hitters, null);
+    }
+
+    /**
+     * 선발투수 vs 타자 맞대결 전적 크롤링 메서드 (한 번의 요청당 한 명 기준)
+     */
+    private KboResponseDTO.MatchupStatsDTO crawlMatchup(
+            WebDriver driver,
+            String pitcherTeamNm, String pitcherNm,
+            String hitterTeamNm, String hitterNm) throws InterruptedException {
+
+        driver.get("https://www.koreabaseball.com/Record/Etc/HitVsPit.aspx");
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+        new Select(wait.until(ExpectedConditions.elementToBeClickable(
+                By.id("cphContents_cphContents_cphContents_ddlPitcherTeam")))).selectByVisibleText(pitcherTeamNm);
+        new Select(wait.until(ExpectedConditions.elementToBeClickable(
+                By.id("cphContents_cphContents_cphContents_ddlPitcherPlayer")))).selectByVisibleText(pitcherNm);
+        new Select(wait.until(ExpectedConditions.elementToBeClickable(
+                By.id("cphContents_cphContents_cphContents_ddlHitterTeam")))).selectByVisibleText(hitterTeamNm);
+        new Select(wait.until(ExpectedConditions.elementToBeClickable(
+                By.id("cphContents_cphContents_cphContents_ddlHitterPlayer")))).selectByVisibleText(hitterNm);
+
+        driver.findElement(By.id("cphContents_cphContents_cphContents_btnSearch")).click();
+
+        wait.until(d -> {
+            Document doc = Jsoup.parse(d.getPageSource());
+            Element row = doc.selectFirst("table.tData.tt tbody tr");
+            return row != null && row.select("td").size() >= 14;
+        });
+
+        Document doc = Jsoup.parse(driver.getPageSource());
+        Element row = doc.selectFirst("table.tData.tt tbody tr");
+        if (row == null) return null;
+        Elements td = row.select("td");
+
+        int ab = parseIntSafe(td.get(2).text());
+        int h = parseIntSafe(td.get(3).text());
+        int hr = parseIntSafe(td.get(6).text());
+        int bb = parseIntSafe(td.get(8).text());
+        double avg = parseDoubleSafe(td.get(0).text());
+        double ops = parseDoubleSafe(td.get(13).text());
+
+        return new KboResponseDTO.MatchupStatsDTO(pitcherNm, hitterNm, ab, h, hr, bb, avg, ops);
+    }
+
+    private int parseIntSafe(String s) {
+        try {
+            return Integer.parseInt(s);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private double parseDoubleSafe(String s) {
+        try {
+            return Double.parseDouble(s);
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
+
+
 }
 
