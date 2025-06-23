@@ -8,8 +8,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,17 +20,18 @@ public class KboController {
 
     private final KboService kboService;
 
-    /* 전체 투수 목록 + 스탯 한번에 */
-    @GetMapping("/api/pitchers")
-    public ResponseEntity<?> getAllPitchers() {
-        List<KboResponseDTO.PitcherFullDTO> respDTO = kboService.crawlAllPitchers();
+
+    // 경기 전체 선발투수 정보
+    @GetMapping("/api/tomorrow-starting-pitchers")
+    public ResponseEntity<?> getTomorrowStartingPitchers() {
+        List<KboResponseDTO.StartingPitcherFullDTO> respDTO = kboService.crawlStartingPitchers();
         return ResponseEntity.ok(respDTO);
     }
 
-    /* 전체 타자 목록 + 스탯 한번에 */
-    @GetMapping("/api/hitters")
-    public ResponseEntity<?> getAllHitters() {
-        List<KboResponseDTO.HitterFullDTO> respDTO = kboService.crawlAllHitters();
+    // 타자 라인업 (선발투수와 맞대결 전적 포함)
+    @GetMapping("/api/today-hitter-lineups")
+    public ResponseEntity<?> getTodayHitterLineups() {
+        List<KboResponseDTO.HitterLineupDTO> respDTO = kboService.crawlTodayHitterLineups();
         return ResponseEntity.ok(respDTO);
     }
 
@@ -58,51 +57,30 @@ public class KboController {
 
 
     // 상대 선발투수 정보만 반환
-    @GetMapping("/api/starting-pitcher")
-    public ResponseEntity<?> getOpponentPitcher(
-            @RequestParam("gameId") String gameId,
-            @RequestParam("teamType") String teamType
-    ) {
-        String opponentType = teamType.equalsIgnoreCase("home") ? "away" : "home";
+//    @GetMapping("/api/starting-pitcher")
+//    public ResponseEntity<?> getOpponentPitcher(
+//            @RequestParam("gameId") String gameId,
+//            @RequestParam("teamType") String teamType
+//    ) {
+//        String opponentType = teamType.equalsIgnoreCase("home") ? "away" : "home";
+//
+//        KboResponseDTO.StartingPitcherFullDTO opponent =
+//                kboService.crawlStartingPitcher(gameId, opponentType);
+//
+//        if (opponent == null) {
+//            Map<String, String> error = new HashMap<>();
+//            error.put("message", "해당 경기에서 상대 선발투수를 찾을 수 없습니다.");
+//            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+//        }
+//
+//        return ResponseEntity.ok(opponent);
+//    }
 
-        KboResponseDTO.StartingPitcherFullDTO opponent =
-                kboService.crawlStartingPitcher(gameId, opponentType);
-
-        if (opponent == null) {
-            Map<String, String> error = new HashMap<>();
-            error.put("message", "해당 경기에서 상대 선발투수를 찾을 수 없습니다.");
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-        }
-
-        return ResponseEntity.ok(opponent);
-    }
-
-    // 오늘 경기 전체 선발투수 정보
-    @GetMapping("/api/today-starting-pitchers")
-    public ResponseEntity<?> getTodayStartingPitchers() {
-        List<KboResponseDTO.StartingPitcherFullDTO> respDTO = kboService.crawlTodayStartingPitchers();
-        return ResponseEntity.ok(respDTO);
-    }
-
-    // 내일 경기 전체 선발투수 정보
-    @GetMapping("/api/tomorrow-starting-pitchers")
-    public ResponseEntity<?> getTomorrowStartingPitchers() {
-        List<KboResponseDTO.StartingPitcherFullDTO> respDTO = kboService.crawlTomorrowStartingPitchers();
-        return ResponseEntity.ok(respDTO);
-    }
-
-    @GetMapping("/api/today-hitter-lineups")
-    public ResponseEntity<?> getTodayHitterLineups() {
-        List<KboResponseDTO.HitterLineupDTO> respDTO = kboService.crawlTodayHitterLineups();
-        return ResponseEntity.ok(respDTO);
-    }
-
-
-    @GetMapping("/api/all-team-players")
-    public ResponseEntity<?> getAllTeamPlayers() {
-        List<KboResponseDTO.PlayerSimpleDTO> players = kboService.crawlAllTeamsPlayers();
-        return ResponseEntity.ok(players);
-    }
-
+    // 수요일 ~ 일요일 경기 전체 선발투수 정보
+//    @GetMapping("/api/today-starting-pitchers")
+//    public ResponseEntity<?> getTodayStartingPitchers() {
+//        List<KboResponseDTO.StartingPitcherFullDTO> respDTO = kboService.crawlTodayStartingPitchers();
+//        return ResponseEntity.ok(respDTO);
+//    }
 
 }

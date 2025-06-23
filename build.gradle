@@ -25,7 +25,7 @@ repositories {
 
 dependencies {
     implementation 'io.github.bonigarcia:webdrivermanager:5.8.0'
-    implementation 'org.jsoup:jsoup:1.17.2'
+    implementation 'org.jsoup:jsoup:1.20.1'
     implementation 'org.slf4j:slf4j-api:2.0.13'
     implementation 'org.seleniumhq.selenium:selenium-java:4.21.0'
     implementation 'com.google.code.gson:gson:2.10.1'

@@ -79,7 +79,7 @@ public class KboResponseDTO {
     }
 
 
-    /* 오늘 경기의 선발투수 정보 */
+    /* 선발투수 정보 */
     @Data
     public static class StartingPitcherFullDTO {
         private String name;
@@ -89,21 +89,25 @@ public class KboResponseDTO {
         private String gameResult;
         private Integer qs;
         private double whip;
-        private String teamType;
+        private String teamType;   // away / home
         private String gameId;
-        private String message; // 기본값은 null
+        private String teamName;   // ⬅️ 새 필드
+        private String message;    // 기본값 null
 
-        // 일반 생성자 (message null 기본값)
+        // (1) message 없이 생성
         public StartingPitcherFullDTO(String name, String profil_img,
                                       double era, Integer gameCount, String gameResult,
-                                      Integer qs, double whip, String teamType, String gameId) {
-            this(name, profil_img, era, gameCount, gameResult, qs, whip, teamType, gameId, null);
+                                      Integer qs, double whip, String teamType,
+                                      String gameId, String teamName) {
+            this(name, profil_img, era, gameCount, gameResult, qs, whip,
+                    teamType, gameId, teamName, null);
         }
 
-        // message 포함 생성자
+        // (2) message 포함 생성
         public StartingPitcherFullDTO(String name, String profil_img,
                                       double era, Integer gameCount, String gameResult,
-                                      Integer qs, double whip, String teamType, String gameId, String message) {
+                                      Integer qs, double whip, String teamType,
+                                      String gameId, String teamName, String message) {
             this.name = name;
             this.profil_img = profil_img;
             this.era = era;
@@ -113,7 +117,16 @@ public class KboResponseDTO {
             this.whip = whip;
             this.teamType = teamType;
             this.gameId = gameId;
+            this.teamName = teamName;
             this.message = message;
+        }
+
+        // 빈 DTO
+        public static StartingPitcherFullDTO empty(String teamType, String gameId, String teamName) {
+            return new StartingPitcherFullDTO(
+                    "", "", 0.0, 0, "없음", 0, 0.0,
+                    teamType, gameId, teamName, "라인업 발표 전입니다"
+            );
         }
     }
 
@@ -124,16 +137,38 @@ public class KboResponseDTO {
         private List<HitterInfo> hitters;
         private String message;
 
+        @Data
         public static class HitterInfo {
             private int order;
             private String position;
             private String playerName;
+            private List<MatchUpDTO> matchUps;
+
+            @Data
+            public static class MatchUpDTO {
+                private Integer ab;  // 타수
+                private Integer h;  // 안타
+                private Integer hr;  // 홈런
+                private Integer bb;  // 볼넷
+                private double avg;  // 타율
+                private double ops;  // 출루율 + 장타율
+
+                public MatchUpDTO(Integer ab, Integer h, Integer hr, Integer bb, double avg, double ops) {
+                    this.ab = ab;
+                    this.h = h;
+                    this.hr = hr;
+                    this.bb = bb;
+                    this.avg = avg;
+                    this.ops = ops;
+                }
+            }
 
 
-            public HitterInfo(int order, String position, String playerName) {
+            public HitterInfo(int order, String position, String playerName, List<MatchUpDTO> matchUps) {
                 this.order = order;
                 this.position = position;
                 this.playerName = playerName;
+                this.matchUps = matchUps;
             }
         }
 
@@ -143,20 +178,6 @@ public class KboResponseDTO {
             this.teamName = teamName;
             this.hitters = hitters;
             this.message = message;
-        }
-    }
-
-
-    @Data
-    public static class PlayerSimpleDTO {
-        private String teamCode;    // 팀코드: OB, LG, KT 등
-        private String name;        // 선수이름
-        private String playerId;    // KBO playerId (null일 수도 있음)
-
-        public PlayerSimpleDTO(String teamCode, String name, String playerId) {
-            this.teamCode = teamCode;
-            this.name = name;
-            this.playerId = playerId;
         }
     }
 
