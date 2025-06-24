@@ -16,7 +16,6 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +24,6 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -459,169 +457,6 @@ public class KboService {
             return path.startsWith("http") ? path : "https:" + path;
         }
         return "";
-    }
-
-
-    public void crawlHitterLineupWithMatchup() {
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--headless=new", "--no-sandbox", "--disable-dev-shm-usage");
-        WebDriver driver = new ChromeDriver(options);
-
-        List<KboResponseDTO.HitterLineupDTO> result = new ArrayList<>();
-
-        try {
-            // ① 오늘 날짜로 URL 생성
-            String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-            String url = "https://www.koreabaseball.com/Schedule/GameCenter/Main.aspx?gameDate=" + today;
-            driver.get(url);
-
-            // ② 경기 정보 로딩 대기
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("li.game-cont")));
-
-            // ③ 각 경기별 라인업 + 선발투수 정보 파싱
-            List<WebElement> games = driver.findElements(By.cssSelector("li.game-cont"));
-            for (WebElement game : games) {
-                String homeTeam = game.getAttribute("home_nm");
-                String awayTeam = game.getAttribute("away_nm");
-                String homePitcher = game.getAttribute("home_p_nm");
-                String awayPitcher = game.getAttribute("away_p_nm");
-                String lineupCk = game.getAttribute("lineup_ck");
-
-                driver.get(url); // 페이지 리로딩
-                Thread.sleep(1000);
-
-                if (!"1".equals(lineupCk)) {
-                    result.add(new KboResponseDTO.HitterLineupDTO("away", awayTeam, Collections.emptyList(), "라인업 발표 전입니다"));
-                    result.add(new KboResponseDTO.HitterLineupDTO("home", homeTeam, Collections.emptyList(), "라인업 발표 전입니다"));
-                    continue;
-                }
-
-                // away 타자 vs home 선발투수
-                result.add(parseLineupWithMatchup(driver, "#tblAwayLineUp", "away", awayTeam, homeTeam, homePitcher));
-                // home 타자 vs away 선발투수
-                result.add(parseLineupWithMatchup(driver, "#tblHomeLineUp", "home", homeTeam, awayTeam, awayPitcher));
-            }
-
-            // ④ 저장
-            //lineupRepo.saveAll(result);
-            log.info("타자 라인업 저장 완료: {}건", result.size());
-
-        } catch (Exception e) {
-            log.error("[ERROR] 타자 라인업 크롤링 실패", e);
-        } finally {
-            driver.quit();
-        }
-    }
-
-    /**
-     * 라인업 테이블 파싱 + 선발투수와의 맞대결 전적 크롤링
-     */
-    private KboResponseDTO.HitterLineupDTO parseLineupWithMatchup(
-            WebDriver driver,
-            String tableSelector,
-            String teamType,
-            String teamName,
-            String opponentTeam,
-            String opponentPitcher
-    ) {
-        List<KboResponseDTO.HitterLineupDTO.HitterInfo> hitters = new ArrayList<>();
-
-        try {
-            WebElement table = driver.findElement(By.cssSelector(tableSelector));
-            List<WebElement> rows = table.findElements(By.cssSelector("tbody tr"));
-
-            for (WebElement row : rows) {
-                List<WebElement> cols = row.findElements(By.tagName("td"));
-                if (cols.size() < 3) continue;
-
-                int order = Integer.parseInt(cols.get(0).getText().trim());
-                String position = cols.get(1).getText().trim();
-                String playerName = cols.get(2).getText().trim();
-
-                List<KboResponseDTO.HitterLineupDTO.HitterInfo.MatchUpDTO> matchUps = new ArrayList<>();
-
-                // 맞대결 크롤링 수행
-                if (opponentPitcher != null && !"없음".equals(opponentPitcher)) {
-                    try {
-                        KboResponseDTO.MatchupStatsDTO stats = crawlMatchup(driver, opponentTeam, opponentPitcher, teamName, playerName);
-                        if (stats != null) {
-                            matchUps.add(new KboResponseDTO.HitterLineupDTO.HitterInfo.MatchUpDTO(
-                                    stats.getAb(), stats.getH(), stats.getHr(), stats.getBb(), stats.getAvg(), stats.getOps()
-                            ));
-                        }
-                    } catch (Exception e) {
-                        log.warn("[WARN] 맞대결 조회 실패: {} vs {}", opponentPitcher, playerName);
-                    }
-                }
-
-                hitters.add(new KboResponseDTO.HitterLineupDTO.HitterInfo(order, position, playerName, matchUps));
-            }
-
-        } catch (Exception e) {
-            log.warn("[WARN] 라인업 파싱 실패: teamType={}, teamName={}", teamType, teamName);
-        }
-
-        return new KboResponseDTO.HitterLineupDTO(teamType, teamName, hitters, null);
-    }
-
-    /**
-     * 선발투수 vs 타자 맞대결 전적 크롤링 메서드 (한 번의 요청당 한 명 기준)
-     */
-    private KboResponseDTO.MatchupStatsDTO crawlMatchup(
-            WebDriver driver,
-            String pitcherTeamNm, String pitcherNm,
-            String hitterTeamNm, String hitterNm) throws InterruptedException {
-
-        driver.get("https://www.koreabaseball.com/Record/Etc/HitVsPit.aspx");
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-
-        new Select(wait.until(ExpectedConditions.elementToBeClickable(
-                By.id("cphContents_cphContents_cphContents_ddlPitcherTeam")))).selectByVisibleText(pitcherTeamNm);
-        new Select(wait.until(ExpectedConditions.elementToBeClickable(
-                By.id("cphContents_cphContents_cphContents_ddlPitcherPlayer")))).selectByVisibleText(pitcherNm);
-        new Select(wait.until(ExpectedConditions.elementToBeClickable(
-                By.id("cphContents_cphContents_cphContents_ddlHitterTeam")))).selectByVisibleText(hitterTeamNm);
-        new Select(wait.until(ExpectedConditions.elementToBeClickable(
-                By.id("cphContents_cphContents_cphContents_ddlHitterPlayer")))).selectByVisibleText(hitterNm);
-
-        driver.findElement(By.id("cphContents_cphContents_cphContents_btnSearch")).click();
-
-        wait.until(d -> {
-            Document doc = Jsoup.parse(d.getPageSource());
-            Element row = doc.selectFirst("table.tData.tt tbody tr");
-            return row != null && row.select("td").size() >= 14;
-        });
-
-        Document doc = Jsoup.parse(driver.getPageSource());
-        Element row = doc.selectFirst("table.tData.tt tbody tr");
-        if (row == null) return null;
-        Elements td = row.select("td");
-
-        int ab = parseIntSafe(td.get(2).text());
-        int h = parseIntSafe(td.get(3).text());
-        int hr = parseIntSafe(td.get(6).text());
-        int bb = parseIntSafe(td.get(8).text());
-        double avg = parseDoubleSafe(td.get(0).text());
-        double ops = parseDoubleSafe(td.get(13).text());
-
-        return new KboResponseDTO.MatchupStatsDTO(pitcherNm, hitterNm, ab, h, hr, bb, avg, ops);
-    }
-
-    private int parseIntSafe(String s) {
-        try {
-            return Integer.parseInt(s);
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    private double parseDoubleSafe(String s) {
-        try {
-            return Double.parseDouble(s);
-        } catch (Exception e) {
-            return 0.0;
-        }
     }
 
 
