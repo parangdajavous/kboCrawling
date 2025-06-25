@@ -15,12 +15,16 @@ public class KboRequest {
 
         @Data
         public static class HitterInfo {
-            private Integer teamId;
+            private String teamName;
             private Integer hitterOrder; // 타순
             private String name; // 선수명
             private String position; // 포지션 (내야수, 외야수, ...)
             private List<MachUpStatusDTO> machUpStatuses;  // 맞대결 전적 스탯 리스트
             private Double seasonAVG; // 타자의 시즌 타율
+
+            // 🔽 임시 필드: 누구와 맞붙었는지
+            private String vsPitcherName;
+            private String vsPitcherTeam;
 
             @Data
             public static class MachUpStatusDTO {
@@ -38,13 +42,15 @@ public class KboRequest {
             }
 
 
-            public HitterInfo(Integer teamId, Integer hitterOrder, String name, String position, List<MachUpStatusDTO> machUpStatuses, Double seasonAVG) {
-                this.teamId = teamId;
+            public HitterInfo(String teamName, Integer hitterOrder, String name, String position, List<MachUpStatusDTO> machUpStatuses, Double seasonAVG, String vsPitcherName, String vsPitcherTeam) {
+                this.teamName = teamName;
                 this.hitterOrder = hitterOrder;
                 this.name = name;
                 this.position = position;
                 this.machUpStatuses = machUpStatuses;
                 this.seasonAVG = seasonAVG;
+                this.vsPitcherName = vsPitcherName;
+                this.vsPitcherTeam = vsPitcherTeam;
             }
         }
 
@@ -63,23 +69,36 @@ public class KboRequest {
 
         private String gameId; // 경기ID
         private Integer playerId; // 선수ID
-        private String profileUrl; // 선수 프로필 이미지 경로
-        private double ERA;  // 평균 자책점
-        private Integer gameCount;  // 출전 경기수
-        private String result;  // 전적 요약 (예: 10승 3패)
-        private Integer QS;  // 퀄리티 스타트 횟수
-        private double WHIP;  // 이닝당 허용 출루율
+        private List<PitcherDTO> pitchers;
 
 
-        public SaveDTO(String gameId, Integer playerId, String profileUrl, double ERA, Integer gameCount, String result, Integer QS, double WHIP) {
+        @Data
+        public static class PitcherDTO{
+            private String teamName;
+            private String playerName;
+            private String profileUrl; // 선수 프로필 이미지 경로
+            private double ERA;  // 평균 자책점
+            private Integer gameCount;  // 출전 경기수
+            private String result;  // 전적 요약 (예: 10승 3패)
+            private Integer QS;  // 퀄리티 스타트 횟수
+            private double WHIP;  // 이닝당 허용 출루율
+
+            public PitcherDTO(String teamName, String playerName, String profileUrl, double ERA, Integer gameCount, String result, Integer QS, double WHIP) {
+                this.teamName = teamName;
+                this.playerName = playerName;
+                this.profileUrl = profileUrl;
+                this.ERA = ERA;
+                this.gameCount = gameCount;
+                this.result = result;
+                this.QS = QS;
+                this.WHIP = WHIP;
+            }
+        }
+
+        public SaveDTO(String gameId, Integer playerId, List<PitcherDTO> pitchers) {
             this.gameId = gameId;
             this.playerId = playerId;
-            this.profileUrl = profileUrl;
-            this.ERA = ERA;
-            this.gameCount = gameCount;
-            this.result = result;
-            this.QS = QS;
-            this.WHIP = WHIP;
+            this.pitchers = pitchers;
         }
     }
 }
